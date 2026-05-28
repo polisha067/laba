@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: mablinov2704/user-service:latest
+        ports:
+        - containerPort: 8081
+        env:
+        - name: HTTP_PORT
+          value: "8081"
+        - name: DB_DSN
+          value: "host=postgres user=messager password=messager dbname=messager_users sslmode=disable"

@@ -1,0 +1,553 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: s3-csi
+parameters:
+  bucket: messenger-uploads
+  csi.storage.k8s.io/provisioner-secret-name: s3-credentials
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+provisioner: s3.csi.k8s.io
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+---
+apiVersion: v1
+data:
+  001_init.sql: |
+    -- +goose Up
+    CREATE TABLE IF NOT EXISTS messages (
+        id          TEXT PRIMARY KEY,
+        sender_id   TEXT NOT NULL,
+        receiver_id TEXT NOT NULL,
+        text        TEXT NOT NULL DEFAULT '',
+        file_id     TEXT,
+        edited      BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages (sender_id, receiver_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at);
+
+    CREATE TABLE IF NOT EXISTS files (
+        id           TEXT PRIMARY KEY,
+        orig_name    TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        path         TEXT NOT NULL,
+        created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    -- +goose Down
+    DROP TABLE IF EXISTS messages;
+    DROP TABLE IF EXISTS files;
+  002_add_file_name.sql: |-
+    -- +goose Up
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS file_name TEXT NOT NULL DEFAULT '';
+
+    -- +goose Down
+    ALTER TABLE messages DROP COLUMN IF EXISTS file_name;
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: message-migrations-cm
+  namespace: messenger-dev
+---
+apiVersion: v1
+data:
+  001_init.sql: |-
+    -- +goose Up
+    CREATE TABLE IF NOT EXISTS users (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_users_name ON users (name);
+
+    -- +goose Down
+    DROP TABLE IF EXISTS users;
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: user-migrations-cm
+  namespace: messenger-dev
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: s3-credentials
+  namespace: messenger-dev
+stringData:
+  accessKeyID: minioadmin
+  endpoint: http://minio.default.svc:9000
+  region: us-east-1
+  secretAccessKey: minioadmin
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: bff
+  namespace: messenger-dev
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: bff
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: frontend
+  namespace: messenger-dev
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: frontend
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: message-service
+  namespace: messenger-dev
+spec:
+  ports:
+  - port: 8082
+    targetPort: 8082
+  selector:
+    app: message-service
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: postgres
+  namespace: messenger-dev
+spec:
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: postgres
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: user-service
+  namespace: messenger-dev
+spec:
+  ports:
+  - port: 8081
+    targetPort: 8081
+  selector:
+    app: user-service
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: postgres-pvc
+  namespace: messenger-dev
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: s3-pvc
+  namespace: messenger-dev
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: s3-csi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: bff
+  namespace: messenger-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bff
+      app.kubernetes.io/part-of: messenger
+      environment: dev
+  template:
+    metadata:
+      labels:
+        app: bff
+        app.kubernetes.io/part-of: messenger
+        environment: dev
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: workload
+                operator: In
+                values:
+                - app
+      containers:
+      - env:
+        - name: HTTP_PORT
+          value: "8080"
+        - name: USER_SERVICE_URL
+          value: http://user-service:8081
+        - name: MSG_SERVICE_URL
+          value: http://message-service:8082
+        image: mablinov2704/bff:latest
+        name: bff
+        ports:
+        - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: frontend
+  namespace: messenger-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+      app.kubernetes.io/part-of: messenger
+      environment: dev
+  template:
+    metadata:
+      labels:
+        app: frontend
+        app.kubernetes.io/part-of: messenger
+        environment: dev
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: workload
+                operator: In
+                values:
+                - app
+      containers:
+      - env:
+        - name: BFF_URL
+          value: ""
+        - name: BFF_INTERNAL_URL
+          value: http://bff:8080
+        image: mablinov2704/frontend:latest
+        name: frontend
+        ports:
+        - containerPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: message-service
+  namespace: messenger-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: message-service
+      app.kubernetes.io/part-of: messenger
+      environment: dev
+  template:
+    metadata:
+      labels:
+        app: message-service
+        app.kubernetes.io/part-of: messenger
+        environment: dev
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: disk
+                operator: In
+                values:
+                - fast
+            weight: 100
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: workload
+                operator: In
+                values:
+                - app
+      containers:
+      - env:
+        - name: HTTP_PORT
+          value: "8082"
+        - name: DB_DSN
+          value: host=postgres user=messager password=messager dbname=messager_messages
+            sslmode=disable
+        - name: UPLOADS_DIR
+          value: /mnt/s3-uploads
+        image: mablinov2704/message-service:latest
+        name: message-service
+        ports:
+        - containerPort: 8082
+        volumeMounts:
+        - mountPath: /mnt/s3-uploads
+          name: s3-storage
+      volumes:
+      - name: s3-storage
+        persistentVolumeClaim:
+          claimName: s3-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: postgres
+  namespace: messenger-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+      app.kubernetes.io/part-of: messenger
+      environment: dev
+  template:
+    metadata:
+      labels:
+        app: postgres
+        app.kubernetes.io/part-of: messenger
+        environment: dev
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: workload
+                operator: In
+                values:
+                - system
+      containers:
+      - env:
+        - name: POSTGRES_USER
+          value: messager
+        - name: POSTGRES_PASSWORD
+          value: messager
+        - name: POSTGRES_DB
+          value: messager
+        image: postgres:16-alpine
+        name: postgres
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgres-storage
+      initContainers:
+      - command:
+        - sh
+        - -c
+        - |
+          psql -h localhost -U messager -c "CREATE DATABASE messager_users;" || true
+          psql -h localhost -U messager -c "CREATE DATABASE messager_messages;" || true
+        env:
+        - name: PGPASSWORD
+          value: messager
+        image: postgres:16-alpine
+        name: create-databases
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: user-service
+  namespace: messenger-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+      app.kubernetes.io/part-of: messenger
+      environment: dev
+  template:
+    metadata:
+      labels:
+        app: user-service
+        app.kubernetes.io/part-of: messenger
+        environment: dev
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: workload
+                operator: In
+                values:
+                - app
+      containers:
+      - env:
+        - name: HTTP_PORT
+          value: "8081"
+        - name: DB_DSN
+          value: host=postgres user=messager password=messager dbname=messager_users
+            sslmode=disable
+        image: mablinov2704/user-service:latest
+        name: user-service
+        ports:
+        - containerPort: 8081
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: migrate-messages
+  namespace: messenger-dev
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: messenger
+        environment: dev
+    spec:
+      containers:
+      - command:
+        - goose
+        - -dir
+        - /migrations
+        - postgres
+        - $(GOOSE_DBSTRING)
+        - up
+        env:
+        - name: GOOSE_DRIVER
+          value: postgres
+        - name: GOOSE_DBSTRING
+          value: host=postgres user=messager password=messager dbname=messager_messages
+            sslmode=disable
+        - name: GOOSE_MIGRATION_DIR
+          value: /migrations
+        image: ghcr.io/kukymbr/goose-docker:latest
+        name: goose-migrate
+        volumeMounts:
+        - mountPath: /migrations
+          name: migrations
+      restartPolicy: Never
+      volumes:
+      - configMap:
+          name: message-migrations-cm
+        name: migrations
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/part-of: messenger
+    environment: dev
+  name: migrate-users
+  namespace: messenger-dev
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: messenger
+        environment: dev
+    spec:
+      containers:
+      - command:
+        - goose
+        - -dir
+        - /migrations
+        - postgres
+        - $(GOOSE_DBSTRING)
+        - up
+        env:
+        - name: GOOSE_DRIVER
+          value: postgres
+        - name: GOOSE_DBSTRING
+          value: host=postgres user=messager password=messager dbname=messager_users
+            sslmode=disable
+        - name: GOOSE_MIGRATION_DIR
+          value: /migrations
+        image: ghcr.io/kukymbr/goose-docker:latest
+        name: goose-migrate
+        volumeMounts:
+        - mountPath: /migrations
+          name: migrations
+      restartPolicy: Never
+      volumes:
+      - configMap:
+          name: user-migrations-cm
+        name: migrations

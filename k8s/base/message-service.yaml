@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: message-service
+  template:
+    metadata:
+      labels:
+        app: message-service
+    spec:
+      containers:
+      - name: message-service
+        image: mablinov2704/message-service:latest
+        ports:
+        - containerPort: 8082
+        env:
+        - name: HTTP_PORT
+          value: "8082"
+        - name: DB_DSN
+          value: "host=postgres user=messager password=messager dbname=messager_messages sslmode=disable"
+        - name: UPLOADS_DIR
+          value: "/mnt/s3-uploads"
+        volumeMounts:
+        - name: s3-storage
+          mountPath: /mnt/s3-uploads
+      volumes:
+      - name: s3-storage
+        persistentVolumeClaim:
+          claimName: s3-pvc
