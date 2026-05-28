@@ -17,7 +17,7 @@
 
 ## Выполненные требования
 
-### 1. Развернутые контейнерные образы
+### Развернутые контейнерные образы
 
 | Компонент | Образ | Статус |
 
@@ -28,21 +28,21 @@
 | PostgreSQL | postgres:16-alpine | Running |
 | MinIO (S3) | minio/minio:latest | Running |
 
-### 2. Миграции базы данных
+### Миграции базы данных
 
 | Компонент | Образ | Статус |
 
 | migrate-users | ghcr.io/kukymbr/goose-docker:latest | Completed |
 | migrate-messages | ghcr.io/kukymbr/goose-docker:latest | Completed |
 
-### 3. S3-хранилище через CSI
+### S3-хранилище через CSI
 
 - Развернут MinIO в кластере
 - Создан PersistentVolume через CSI драйвер
 - Создан PersistentVolumeClaim для message-service
 - Message-service монтирует /app/uploads через CSI
 
-### 4. Node Affinity (правила размещения)
+### Node Affinity (правила размещения)
 
 | Сервис | Требование | Реализация | Статус |
 |--------|-----------|------------|--------|
@@ -53,6 +53,77 @@
 | user-service | Только workload=app | requiredDuringScheduling | Выполнено |
 | message-service | workload=app + предпочтение disk=fast | required + preferred | Выполнено |
 
+## скрины работы в папке screenshots
+
+## Структура 
+k8s/
+├── base/
+│   ├── kustomization.yaml
+│   ├── namespace.yaml
+│   ├── configmap.yaml
+│   ├── secret.yaml
+│   ├── postgres-pvc.yaml
+│   ├── postgres.yaml
+│   ├── migrate-users-job.yaml
+│   ├── migrate-messages-job.yaml
+│   ├── user-service.yaml
+│   ├── message-service.yaml
+│   ├── bff.yaml
+│   └── frontend.yaml
+│
+├── overlays/
+│   ├── dev/
+│   │   ├── kustomization.yaml
+│   │   ├── minio.yaml
+│   │   ├── s3-pv.yaml
+│   │   └── patches/
+│   │       ├── replicas.yaml
+│   │       ├── resources.yaml
+│   │       └── affinity.yaml
+│   │
+│   └── prod/
+│       ├── kustomization.yaml
+│       ├── s3-pv.yaml
+│       └── patches/
+│           ├── replicas.yaml
+│           ├── resources.yaml
+│           └── affinity.yaml
+
+### Argo CD (GitOps)
+Argo CD установлен в namespace argocd
+Создан Application для DEV окружения
+Настроена автоматическая синхронизация (automated)
+Включен prune (удаление лишних ресурсов)
+Включен selfHeal (восстановление при рассинхроне)
+
+### Вывод
+В ходе выполнения лабораторной работы были успешно решены следующие задачи:
+Развертывание приложения: Все 5 микросервисов запущены и работают в Kubernetes-кластере.
+Управление конфигурациями: Создана Kustomize-структура с базовой конфигурацией и окружениями dev/prod.
+S3 хранилище: Развернут MinIO, настроен CSI-драйвер, создан PersistentVolumeClaim.
+Node Affinity: Реализованы все правила размещения подов согласно заданию.
+GitOps: Установлен Argo CD, настроен Application с автоматической синхронизацией.
+Все требования лабораторной работы выполнены в полном объеме.
+
+
 **Проверка меток на нодах:**
 ```bash
 kubectl get nodes --show-labels
+
+**Проверка размещения подов:**
+```bash
+kubectl get pods -n messager-dev -o wide
+
+**Проверки:**
+# Проверка всех подов
+kubectl get pods -n messager-dev
+
+# Проверка сервисов
+kubectl get svc -n messager-dev
+
+# Проверка PVC
+kubectl get pvc -n messager-dev
+
+# Доступ к приложению
+kubectl port-forward -n messager-dev svc/frontend 8080:80
+
