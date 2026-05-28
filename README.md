@@ -53,7 +53,7 @@
 | user-service | Только workload=app | requiredDuringScheduling | Выполнено |
 | message-service | workload=app + предпочтение disk=fast | required + preferred | Выполнено |
 
-## скрины работы в папке screenshots
+### скрины работы в папке screenshots
 
 ## Структура 
 k8s/
@@ -86,15 +86,15 @@ k8s/
                 replicas.yaml
                 resources.yaml
                 affinity.yaml
-argocd/
-    app-dev.yaml
-screenshots/
-    pods.png
-    frontend.png
-    argocd.png
-    node-affinity.png
-    s3-pvc.png
-
+    argocd/
+        app-dev.yaml
+    screenshots/
+        pods.png
+        frontend.png
+        argocd.png
+        node-affinity.png
+        s3-pvc.png
+        
 ### Argo CD (GitOps)
 Argo CD установлен в namespace argocd
 Создан Application для DEV окружения
