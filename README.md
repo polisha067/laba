@@ -3,8 +3,6 @@
 ## Выполнила: Журавлёва Полина Петровна
 ## Группа: М80-106БВ-25
 
----
-
 ## Цель работы
 
 Развернуть микросервисное приложение "Мессенджер" в Kubernetes-кластере с использованием:
@@ -45,7 +43,7 @@
 ### Node Affinity (правила размещения)
 
 | Сервис | Требование | Реализация | Статус |
-|--------|-----------|------------|--------|
+
 | postgres | Только workload=system | requiredDuringScheduling | Выполнено |
 | minio | Только workload=system | requiredDuringScheduling | Выполнено |
 | frontend | Только workload=app | requiredDuringScheduling | Выполнено |
@@ -53,48 +51,48 @@
 | user-service | Только workload=app | requiredDuringScheduling | Выполнено |
 | message-service | workload=app + предпочтение disk=fast | required + preferred | Выполнено |
 
-### скрины работы в папке screenshots
+## Cкрины работы в папке screenshots
 
 ## Структура 
 
-├── k8s/
-│   ├── base/
-│   │   ├── kustomization.yaml
-│   │   ├── namespace.yaml
-│   │   ├── configmap.yaml
-│   │   ├── secret.yaml
-│   │   ├── postgres-pvc.yaml
-│   │   ├── postgres.yaml
-│   │   ├── migrate-users-job.yaml
-│   │   ├── migrate-messages-job.yaml
-│   │   ├── user-service.yaml
-│   │   ├── message-service.yaml
-│   │   ├── bff.yaml
-│   │   └── frontend.yaml
-│   ├── overlays/
-│   │   ├── dev/
-│   │   │   ├── kustomization.yaml
-│   │   │   ├── minio.yaml
-│   │   │   ├── s3-pv.yaml
-│   │   │   └── patches/
-│   │   │       ├── replicas.yaml
-│   │   │       ├── resources.yaml
-│   │   │       └── affinity.yaml
-│   │   └── prod/
-│   │       ├── kustomization.yaml
-│   │       ├── s3-pv.yaml
-│   │       └── patches/
-│   │           ├── replicas.yaml
-│   │           ├── resources.yaml
-│   │           └── affinity.yaml
-│   ├── argocd/
-│   │   └── app-dev.yaml
-│   └── screenshots/
-│       ├── pods.png
-│       ├── frontend.png
-│       ├── argocd.png
-│       ├── node-affinity.png
-│       └── s3-pvc.png
+    ├── k8s/
+    │   ├── base/
+    │   │   ├── kustomization.yaml
+    │   │   ├── namespace.yaml
+    │   │   ├── configmap.yaml
+    │   │   ├── secret.yaml
+    │   │   ├── postgres-pvc.yaml
+    │   │   ├── postgres.yaml
+    │   │   ├── migrate-users-job.yaml
+    │   │   ├── migrate-messages-job.yaml
+    │   │   ├── user-service.yaml
+    │   │   ├── message-service.yaml
+    │   │   ├── bff.yaml
+    │   │   └── frontend.yaml
+    │   ├── overlays/
+    │   │   ├── dev/
+    │   │   │   ├── kustomization.yaml
+    │   │   │   ├── minio.yaml
+    │   │   │   ├── s3-pv.yaml
+    │   │   │   └── patches/
+    │   │   │       ├── replicas.yaml
+    │   │   │       ├── resources.yaml
+    │   │   │       └── affinity.yaml
+    │   │   └── prod/
+    │   │       ├── kustomization.yaml
+    │   │       ├── s3-pv.yaml
+    │   │       └── patches/
+    │   │           ├── replicas.yaml
+    │   │           ├── resources.yaml
+    │   │           └── affinity.yaml
+    │   ├── argocd/
+    │   │   └── app-dev.yaml
+    │   └── screenshots/
+    │       ├── pods.png
+    │       ├── frontend.png
+    │       ├── argocd.png
+    │       ├── node-affinity.png
+    │       └── s3-pvc.png
 
 ### Argo CD (GitOps)
 Argo CD установлен в namespace argocd
@@ -113,24 +111,28 @@ GitOps: Установлен Argo CD, настроен Application с автом
 Все требования лабораторной работы выполнены в полном объеме.
 
 
-**Проверка меток на нодах:**
+# Проверка меток на нодах:
 ```bash
 kubectl get nodes --show-labels
-
-**Проверка размещения подов:**
+```
+# Проверка размещения подов:
 ```bash
 kubectl get pods -n messager-dev -o wide
-
-**Проверки:**
+```
+# Проверки:
 # Проверка всех подов
+```bash
 kubectl get pods -n messager-dev
-
+```
 # Проверка сервисов
+```bash
 kubectl get svc -n messager-dev
-
+```
 # Проверка PVC
+```bash
 kubectl get pvc -n messager-dev
-
+```
 # Доступ к приложению
+```bash
 kubectl port-forward -n messager-dev svc/frontend 8080:80
-
+```
