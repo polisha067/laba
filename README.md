@@ -57,47 +57,43 @@
 
 ## Структура 
 k8s/
-├── base/
-│ ├── kustomization.yaml
-│ ├── namespace.yaml
-│ ├── configmap.yaml
-│ ├── secret.yaml
-│ ├── postgres-pvc.yaml
-│ ├── postgres.yaml
-│ ├── migrate-users-job.yaml
-│ ├── migrate-messages-job.yaml
-│ ├── user-service.yaml
-│ ├── message-service.yaml
-│ ├── bff.yaml
-│ └── frontend.yaml
-│
-├── overlays/
-│ ├── dev/
-│ │ ├── kustomization.yaml
-│ │ ├── minio.yaml
-│ │ ├── s3-pv.yaml
-│ │ └── patches/
-│ │ ├── replicas.yaml
-│ │ ├── resources.yaml
-│ │ └── affinity.yaml
-│ │
-│ └── prod/
-│ ├── kustomization.yaml
-│ ├── s3-pv.yaml
-│ └── patches/
-│ ├── replicas.yaml
-│ ├── resources.yaml
-│ └── affinity.yaml
-│
-├── argocd/
-│ └── app-dev.yaml
-│
-└── screenshots/
-├── pods.png
-├── frontend.png
-├── argocd.png
-├── node-affinity.png
-└── s3-pvc.png
+|-- base/
+|   |-- kustomization.yaml
+|   |-- namespace.yaml
+|   |-- configmap.yaml
+|   |-- secret.yaml
+|   |-- postgres-pvc.yaml
+|   |-- postgres.yaml
+|   |-- migrate-users-job.yaml
+|   |-- migrate-messages-job.yaml
+|   |-- user-service.yaml
+|   |-- message-service.yaml
+|   |-- bff.yaml
+|   `-- frontend.yaml
+|-- overlays/
+|   |-- dev/
+|   |   |-- kustomization.yaml
+|   |   |-- minio.yaml
+|   |   |-- s3-pv.yaml
+|   |   `-- patches/
+|   |       |-- replicas.yaml
+|   |       |-- resources.yaml
+|   |       `-- affinity.yaml
+|   `-- prod/
+|       |-- kustomization.yaml
+|       |-- s3-pv.yaml
+|       `-- patches/
+|           |-- replicas.yaml
+|           |-- resources.yaml
+|           `-- affinity.yaml
+|-- argocd/
+|   `-- app-dev.yaml
+`-- screenshots/
+    |-- pods.png
+    |-- frontend.png
+    |-- argocd.png
+    |-- node-affinity.png
+    `-- s3-pvc.png
 
 ### Argo CD (GitOps)
 Argo CD установлен в namespace argocd
