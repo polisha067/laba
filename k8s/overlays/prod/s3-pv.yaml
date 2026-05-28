@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: s3-pv-messager-uploads-prod
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  mountOptions:
+    - allow-delete
+    - url=https://s3.amazonaws.com
+    - region=us-east-1
+  csi:
+    driver: ch.ctrox.csi.s3-driver
+    volumeHandle: messager-prod-uploads-bucket
+    nodePublishSecretRef:
+      name: csi-s3-secret
+      namespace: messager-prod
+    volumeAttributes:
+      bucketName: messager-prod-uploads
+      mounter: rclone
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: message-uploads-pvc
+  namespace: messager-prod
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  volumeName: s3-pv-messager-uploads-prod

@@ -1,34 +1,19 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+namespace: messager-dev
+
 resources:
   - ../../base
+  - minio.yaml
+  - s3-pv.yaml
 
-namespace: messenger-dev
-
-labels:
-  - includeSelectors: true
-    pairs:
-      app.kubernetes.io/part-of: messenger
-
-patches:
-  - path: affinity-postgres.yaml
-    target:
-      kind: Deployment
-      name: postgres
-  - path: affinity-app-services.yaml
-    target:
-      kind: Deployment
-      name: user-service
-  - path: affinity-message-service.yaml
-    target:
-      kind: Deployment
-      name: message-service
-  - path: affinity-app-services.yaml
-    target:
-      kind: Deployment
-      name: bff
-  - path: affinity-app-services.yaml
-    target:
-      kind: Deployment
-      name: frontend
+images:
+  - name: mablinov2704/frontend
+    newTag: latest
+  - name: mablinov2704/bff
+    newTag: latest
+  - name: mablinov2704/user-service
+    newTag: latest
+  - name: mablinov2704/message-service
+    newTag: latest

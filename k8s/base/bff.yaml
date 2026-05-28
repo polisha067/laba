@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bff
+  namespace: messager-dev
 spec:
   replicas: 1
   selector:
@@ -13,14 +14,42 @@ spec:
         app: bff
     spec:
       containers:
-      - name: bff
-        image: mablinov2704/bff:latest
-        ports:
-        - containerPort: 8080
-        env:
-        - name: HTTP_PORT
-          value: "8080"
-        - name: USER_SERVICE_URL
-          value: "http://user-service:8081"
-        - name: MSG_SERVICE_URL
-          value: "http://message-service:8082"
+        - name: bff
+          image: mablinov2704/bff:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: HTTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: messager-config
+                  key: BFF_HTTP_PORT
+            - name: USER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: messager-config
+                  key: USER_SERVICE_URL
+            - name: MSG_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: messager-config
+                  key: MSG_SERVICE_URL
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "192Mi"
+            limits:
+              cpu: "300m"
+              memory: "384Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bff
+  namespace: messager-dev
+spec:
+  selector:
+    app: bff
+  ports:
+    - port: 8080
+      targetPort: 8080

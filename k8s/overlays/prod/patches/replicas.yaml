@@ -1,14 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: user-service
-spec:
-  replicas: 2
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: message-service
+  name: frontend
 spec:
   replicas: 2
 ---
@@ -17,11 +10,18 @@ kind: Deployment
 metadata:
   name: bff
 spec:
-  replicas: 2
+  replicas: 3
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: frontend
+  name: user-service
 spec:
-  replicas: 2
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-service
+spec:
+  replicas: 3
